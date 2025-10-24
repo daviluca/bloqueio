@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Verificação de Localização - Agente de Endemias</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+    }
+    #map {
+      height: 70vh;
+    }
+    #info {
+      padding: 10px;
+      background: #f9f9f9;
+      border-top: 1px solid #ddd;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+
+<h3 style="text-align:center;">📍 Verificação de Presença no Local</h3>
+<div id="map"></div>
+<div id="info">
+  <p><strong>Coordenadas:</strong> <span id="coords">-</span></p>
+  <p><strong>Horário:</strong> <span id="timestamp">-</span></p>
+  <button onclick="captureLocation()">Registrar Localização</button>
+  <button onclick="clearLog()">Limpar</button>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+  // Inicializa o mapa centrado no Brasil (ou ajuste conforme sua região)
+  const map = L.map('map').setView([-15.7801, -47.9292], 5); // Brasília como padrão
+
+  // Camada base OpenStreetMap
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  let marker = null;
+
+  function captureLocation() {
+    if (!navigator.geolocation) {
+      alert("Geolocalização não suportada neste dispositivo.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        const now = new Date();
+        const timeStr = now.toLocaleString('pt-BR');
+
+        document.getElementById('coords').textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+        document.getElementById('timestamp').textContent = timeStr;
+
+        // Remove marcador anterior
+        if (marker) map.removeLayer(marker);
+
+        // Adiciona novo marcador
+        marker = L.marker([latitude, longitude]).addTo(map)
+          .bindPopup(`📍 Registrado em: ${timeStr}`).openPopup();
+
+        map.setView([latitude, longitude], 16);
+      },
+      (error) => {
+        console.error("Erro na geolocalização:", error);
+        alert("Não foi possível obter sua localização. Verifique as permissões.");
+      },
+      {
+        enableHighAccuracy: true, // Importante para precisão em campo
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  }
+
+  function clearLog() {
+    document.getElementById('coords').textContent = '-';
+    document.getElementById('timestamp').textContent = '-';
+    if (marker) {
+      map.removeLayer(marker);
+      marker = null;
+    }
+  }
+</script>
+
+</body>
+</html>
