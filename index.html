@@ -37,6 +37,8 @@
 <div id="info">
   <p><strong>Coordenadas:</strong> <span id="coords">-</span></p>
   <p><strong>Horário:</strong> <span id="timestamp">-</span></p>
+  <p><strong>AGENTE:</strong> <span id="agente">-</span></p>
+  <input type="text" id="inputAgente" placeholder="Digite seu nome ou ID" style="width:100%; padding:8px; margin:8px 0;">
   <button onclick="captureLocation()">Registrar Localização</button>
   <button onclick="clearLog()">Limpar</button>
 </div>
@@ -55,41 +57,74 @@
 
   let marker = null;
 
-  function captureLocation() {
-    if (!navigator.geolocation) {
-      alert("Geolocalização não suportada neste dispositivo.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const now = new Date();
-        const timeStr = now.toLocaleString('pt-BR');
-
-        document.getElementById('coords').textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-        document.getElementById('timestamp').textContent = timeStr;
-
-        // Remove marcador anterior
-        if (marker) map.removeLayer(marker);
-
-        // Adiciona novo marcador
-        marker = L.marker([latitude, longitude]).addTo(map)
-          .bindPopup(`📍 Registrado em: ${timeStr}`).openPopup();
-
-        map.setView([latitude, longitude], 16);
-      },
-      (error) => {
-        console.error("Erro na geolocalização:", error);
-        alert("Não foi possível obter sua localização. Verifique as permissões.");
-      },
-      {
-        enableHighAccuracy: true, // Importante para precisão em campo
-        timeout: 10000,
-        maximumAge: 0
-      }
-    );
+function captureLocation() {
+  const nomeAgente = document.getElementById('inputAgente').value.trim();
+  if (!nomeAgente) {
+    alert("⚠️ Por favor, informe seu nome ou ID de agente.");
+    return;
   }
+
+  if (!navigator.geolocation) {
+    alert("❌ Geolocalização não suportada.");
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    async (position) => {
+      const { latitude, longitude, accuracy } = position.coords;
+      const now = new Date();
+      const timeStr = now.toLocaleString('pt-BR');
+
+      // Atualiza a interface
+      document.getElementById('coords').textContent = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+      document.getElementById('timestamp').textContent = timeStr;
+      document.getElementById('agente').textContent = nomeAgente;
+
+      if (marker) map.removeLayer(marker);
+      marker = L.marker([latitude, longitude]).addTo(map)
+        .bindPopup(`<b>${nomeAgente}</b><br/>${timeStr}`).openPopup();
+      map.setView([latitude, longitude], 17);
+
+      // 🔥 ENVIAR PARA O GOOGLE SHEETS
+      const scriptURL = 'https://script.google.com/macros/s/AKfycbwm_M9OZotPGeo-2QtBdFvHzbD771oW2Mzd8lUAdYRarAYuHW86ju8AAaSFZ-1ayrwc/exec'; // <-- ⚠️ ALTERE AQUI!
+
+      const payload = {
+        agente: nomeAgente,
+        lat: latitude,
+        lng: longitude,
+        accuracy: accuracy || null
+      };
+
+      try {
+        const response = await fetch(scriptURL, {
+          method: 'POST',
+          mode: 'no-cors', // Necessário para Google Apps Script (mas limita resposta)
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // Com no-cors, não conseguimos ler a resposta, mas o dado é salvo mesmo assim
+        alert("✅ Localização registrada com sucesso!");
+      } catch (error) {
+        console.error("Erro ao enviar:", error);
+        alert("⚠️ Localização registrada localmente, mas falha ao salvar online. Verifique a conexão.");
+      }
+    },
+    (error) => {
+      console.error("Erro na geolocalização:", error);
+      alert("❌ Não foi possível obter sua localização. Verifique as permissões.");
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+
+ }
 
   function clearLog() {
     document.getElementById('coords').textContent = '-';
